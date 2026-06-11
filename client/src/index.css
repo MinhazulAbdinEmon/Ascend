@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/* Design tokens - the entire app palette lives here.
+   Usage: bg-ink, bg-panel, text-neon, border-edge, font-display, etc. */
+@theme {
+  --color-ink: #07090f;            /* page background */
+  --color-panel: #0d1117;          /* card background */
+  --color-edge: rgba(255, 255, 255, 0.08); /* hairline borders */
+  --color-neon: #22d3ee;           /* primary accent (cyan) */
+  --color-violet: #a78bfa;         /* secondary accent */
+  --color-ember: #f59e0b;          /* streak / fire */
+  --color-danger: #f87171;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Inter", sans-serif;
+}
+
+body {
+  @apply bg-ink font-sans text-slate-200 antialiased;
+}
+
+/* Glassmorphism card used across the app */
+.glass {
+  @apply rounded-2xl border border-edge;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+}
+
+/* Form input.
+   text-base on mobile is deliberate: iOS Safari auto-zooms into any input
+   with a font smaller than 16px, which feels broken. Desktop gets text-sm. */
+.input {
+  @apply w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-base text-slate-100 placeholder-slate-500 outline-none transition focus:border-neon/60 focus:ring-2 focus:ring-neon/20 sm:text-sm;
+}
+
+/* Primary button */
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-neon px-4 py-2.5 text-sm font-semibold text-ink transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* Ghost / secondary button */
+.btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-edge px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/5 active:scale-[0.98];
+}
