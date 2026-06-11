@@ -55,8 +55,8 @@ export const RANK_COLORS = {
   Disciplined: 'text-violet border-violet/40 bg-violet/10',
   Elite: 'text-fuchsia-300 border-fuchsia-500/40 bg-fuchsia-500/10',
   Prime: 'text-neon border-neon/40 bg-neon/10',
-  Spartan: 'text-danger border-red-500/50 bg-red-500/10',
-  Sovereign: 'text-yellow-300 border-yellow-400/50 bg-yellow-400/10',
+  Spartan: 'text-yellow-300 border-yellow-400/50 bg-yellow-400/10',
+  Sovereign: 'text-red-400 border-red-500/50 bg-red-500/10',
 };
 
 // Where does `rankRating` put you on the ladder, and how far is the next rank?
