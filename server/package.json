@@ -8,7 +8,8 @@
     "dev": "nodemon src/server.js",
     "dev:local": "node scripts/devLocal.js",
     "start": "node src/server.js",
-    "smoke": "node scripts/smokeTest.js"
+    "smoke": "node scripts/smokeTest.js",
+    "test:focus": "node scripts/focusTest.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

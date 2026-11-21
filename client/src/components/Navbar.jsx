@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import RankBadge from './RankBadge';
 
@@ -6,6 +6,8 @@ import RankBadge from './RankBadge';
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const title = { '/dashboard': 'Overview', '/statistics': 'Statistics', '/tasks': 'Missions', '/skills': 'Skill tree', '/profile': 'Player profile', '/leaderboard': 'Leaderboard', '/guide': 'How to play' }[location.pathname] || 'Overview';
 
   const handleLogout = async () => {
     await logout();
@@ -19,7 +21,7 @@ export default function Navbar() {
           A<span className="text-neon">scend</span>
         </Link>
 
-        <div className="ml-auto flex items-center gap-3 sm:gap-4">
+        <div className="hidden md:flex items-center gap-3 text-xs"><span className="text-slate-500">Your playground</span><span className="text-slate-600">/</span><span>{title}</span></div><div className="ml-auto flex items-center gap-3 sm:gap-4">
           {user && (
             <>
               <span

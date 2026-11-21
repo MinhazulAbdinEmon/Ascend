@@ -147,7 +147,9 @@ try {
   let sawDiminished = false;
   let sawEasyCap = false;
   for (let i = 0; i < 12; i++) {
-    const r = await complete(t4);
+    const mission = i === 0 ? t4 : await makeTask({ title: `Water break ${i}`, skill, difficulty: 'easy', frequency: 'daily', repeatable: true });
+    const r = await complete(mission);
+    if (i === 0) check('repeatable missions also lock after completion today', (await complete(t4)).status === 409);
     if (r.body.diminished) sawDiminished = true;
     if (r.body.cappedDifficulty && r.body.xpAwarded === 0) { sawEasyCap = true; break; }
   }
@@ -159,7 +161,8 @@ try {
   let sawDailyCap = false;
   let finalUser = null;
   for (let i = 0; i < 12; i++) {
-    const r = await complete(t5);
+    const mission = i === 0 ? t5 : await makeTask({ title: `Deep work block ${i}`, skill, difficulty: 'deepwork', frequency: 'daily', repeatable: true });
+    const r = await complete(mission);
     finalUser = r.body.user;
     if (r.body.cappedDaily && r.body.xpAwarded === 0) { sawDailyCap = true; break; }
   }
@@ -203,6 +206,26 @@ try {
   const recalc = await post('/seasons/recalculate-weekly-ranks');
   const recalcBody = await recalc.json();
   check('recalculate-weekly-ranks runs (no ended weeks yet = 0 finalized)', recalc.status === 200 && recalcBody.weeksFinalized === 0);
+  const { default: Completion } = await import('../src/models/Completion.js');
+  const { todayString, shiftDate } = await import('../src/utils/dates.js');
+  const { missionDone } = await import('../src/utils/missionPeriod.js');
+  const { dayWindow } = await import('../../client/src/lib/dayClock.js');
+  await Completion.init();
+  const daily = await makeTask({ title: 'Repeatable daily verification', skill, difficulty: 'easy', frequency: 'daily', repeatable: true });
+  const concurrent = await Promise.all([complete(daily), complete(daily)]);
+  check('simultaneous checks award one completion only', concurrent.filter(r => r.status === 200).length === 1 && concurrent.filter(r => r.status === 409).length === 1);
+  const list = await jsonOf(await get('/tasks'));
+  check('mission list persists crossed-out state', list.tasks.find(t => t._id === daily)?.completed === true);
+  const yesterday = shiftDate(todayString('UTC'), -1);
+  await Completion.updateOne({ task: daily }, { $set: { date: yesterday, periodKey: yesterday } });
+  const nextList = await jsonOf(await get('/tasks'));
+  check('yesterday completion resets today without deleting history', nextList.tasks.find(t => t._id === daily)?.completed === false && (await complete(daily)).status === 200);
+  check('one-time missions stay completed; weekly missions honor their week', missionDone({frequency:'once'}, '2026-09-01', '2026-09-10') && missionDone({frequency:'weekly'}, '2026-09-08', '2026-09-10') && !missionDone({frequency:'weekly'}, '2026-09-06', '2026-09-10'));
+  const midnight = dayWindow(Date.parse('2026-09-09T17:59:59Z'), 'Asia/Dhaka');
+  check('Dhaka countdown reaches reset after 11:59 PM', midnight.resetsAt === Date.parse('2026-09-09T18:00:00Z'));
+  const shortDay = dayWindow(Date.parse('2026-03-08T05:00:00Z'), 'America/New_York');
+  const longDay = dayWindow(Date.parse('2026-11-01T04:00:00Z'), 'America/New_York');
+  check('daily countdown handles 23-hour and 25-hour days', shortDay.resetsAt - Date.parse('2026-03-08T05:00:00Z') === 23*3600000 && longDay.resetsAt - Date.parse('2026-11-01T04:00:00Z') === 25*3600000);
 } catch (err) {
   console.error('Smoke test crashed:', err);
   failures++;

@@ -1,4 +1,5 @@
 import express from 'express';
+import focusRoutes from './routes/focusRoutes.js';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/authRoutes.js';
@@ -39,6 +40,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/skills', skillRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/focus', focusRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/seasons', seasonRoutes);
 

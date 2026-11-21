@@ -1,4 +1,5 @@
 import Task from '../models/Task.js';
+import { missionPeriod, missionDone } from '../utils/missionPeriod.js';
 import Skill from '../models/Skill.js';
 import Completion from '../models/Completion.js';
 import DailyStats from '../models/DailyStats.js';
@@ -13,7 +14,7 @@ import {
   calculateLevel,
   getHeatmapIntensity,
 } from '../utils/gameConfig.js';
-import { todayString, daysAgoString, weekStartString } from '../utils/dates.js';
+import { todayString, daysAgoString } from '../utils/dates.js';
 import { toSafeUser } from '../utils/safeUser.js';
 import { refreshLiveWeeklySnapshot } from '../services/gameService.js';
 
@@ -39,7 +40,13 @@ export const getTasks = async (req, res, next) => {
       .populate('skill', 'name color icon')
       .sort('-createdAt');
 
-    res.json({ tasks });
+    const today = todayString(req.user.timezone || 'UTC');
+    const completions = await Completion.aggregate([
+      { $match: { user: req.user._id, task: { $in: tasks.map(task => task._id) } } },
+      { $group: { _id: '$task', latestDate: { $max: '$date' } } },
+    ]);
+    const latest = new Map(completions.map(entry => [String(entry._id), entry.latestDate]));
+    res.json({ tasks: tasks.map(task => ({ ...task.toObject(), completed: missionDone(task, latest.get(String(task._id)), today) })), today });
   } catch (err) {
     next(err);
   }
@@ -139,22 +146,10 @@ export const completeTask = async (req, res, next) => {
       });
     }
 
-    // --- No double-completing (unless the task is repeatable) ---
-    if (!task.repeatable) {
-      let conflictFilter = { user: user._id, task: task._id, date: today };
-      let conflictMessage = 'Already completed today';
-
-      if (task.frequency === 'weekly') {
-        conflictFilter = { user: user._id, task: task._id, date: { $gte: weekStartString(tz) } };
-        conflictMessage = 'Already completed this week';
-      } else if (task.frequency === 'once') {
-        conflictFilter = { user: user._id, task: task._id };
-        conflictMessage = 'Already completed';
-      }
-
-      const existing = await Completion.findOne(conflictFilter);
-      if (existing) return res.status(409).json({ message: conflictMessage });
-    }
+    // Enforce the same completed state in the API and on every mission board.
+    const period = missionPeriod(task, today);
+    const existing = await Completion.findOne({ user: user._id, task: task._id, ...(period.start ? { date: { $gte: period.start } } : {}) });
+    if (existing) return res.status(409).json({ message: period.message });
 
     // --- Today's numbers so far (drive caps and diminishing returns) ---
     const stats = await DailyStats.findOne({ user: user._id, date: today });
@@ -207,6 +202,7 @@ export const completeTask = async (req, res, next) => {
       task: task._id,
       skill: task.skill,
       date: today,
+      periodKey: period.key,
       xpEarned: xpAwarded,
       difficulty: task.difficulty,
       proofType,
@@ -260,6 +256,7 @@ export const completeTask = async (req, res, next) => {
       completion,
     });
   } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ message: 'Mission already completed. Create another mission to keep going.' });
     next(err);
   }
 };

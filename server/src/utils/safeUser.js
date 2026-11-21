@@ -4,6 +4,7 @@ export const toSafeUser = (user) => ({
   id: user._id,
   username: user.username,
   email: user.email,
+  timezone: user.timezone || 'UTC',
 
   // System 1: lifetime level
   totalXP: user.totalXP,

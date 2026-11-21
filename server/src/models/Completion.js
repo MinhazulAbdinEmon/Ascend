@@ -8,6 +8,7 @@ const completionSchema = new mongoose.Schema(
     task: { type: mongoose.Schema.Types.ObjectId, ref: 'Task', required: true },
     skill: { type: mongoose.Schema.Types.ObjectId, ref: 'Skill' },
     date: { type: String, required: true }, // 'YYYY-MM-DD' in the user's timezone
+    periodKey: { type: String }, // absent on legacy history
     xpEarned: { type: Number, required: true },
     difficulty: {
       type: String,
@@ -27,5 +28,8 @@ const completionSchema = new mongoose.Schema(
 // Fast lookups: "everything user X did on day Y" and "did user X complete task Z today?"
 completionSchema.index({ user: 1, date: 1 });
 completionSchema.index({ user: 1, task: 1, date: 1 });
+
+// Only new records participate, so existing repeatable completion history is preserved.
+completionSchema.index({ user: 1, task: 1, periodKey: 1 }, { unique: true, partialFilterExpression: { periodKey: { $type: 'string' } } });
 
 export default mongoose.model('Completion', completionSchema);

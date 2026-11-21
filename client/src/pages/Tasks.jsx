@@ -5,6 +5,9 @@ import Modal from '../components/Modal';
 import TaskCard from '../components/TaskCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
+import { useAuth } from '../context/AuthContext';
+import useDailyReset from '../lib/useDailyReset';
+import DayCountdown from '../components/DayCountdown';
 import { DIFFICULTIES, FREQUENCIES } from '../lib/game';
 
 const emptyForm = {
@@ -20,6 +23,12 @@ const emptyForm = {
 const FREQUENCY_TABS = [{ value: 'all', label: 'All' }, ...FREQUENCIES];
 
 export default function Tasks() {
+  const { setUser } = useAuth();
+  const [completing, setCompleting] = useState(false);
+  const [proofTask, setProofTask] = useState(null);
+  const [proof, setProof] = useState({ note: '', proofUrl: '', focusMinutes: '' });
+  const [proofError, setProofError] = useState('');
+  const [reward, setReward] = useState('');
   const [tasks, setTasks] = useState([]);
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +61,38 @@ export default function Tasks() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const clock = useDailyReset(loadData);
+  useEffect(() => {
+    if (!reward) return;
+    const timeout = setTimeout(() => setReward(''), 4500);
+    return () => clearTimeout(timeout);
+  }, [reward]);
+  const complete = async (task, evidence = {}) => {
+    setCompleting(true); setError(''); setProofError('');
+    try {
+      const body = { ...evidence };
+      if (body.focusMinutes === '') delete body.focusMinutes;
+      const { data } = await api.post(`/tasks/${task._id}/complete`, body);
+      setUser(data.user);
+      setTasks(current => current.map(item => item._id === task._id ? { ...item, completed: true } : item));
+      setProofTask(null);
+      setReward(`Mission complete · +${data.xpAwarded} XP. Another small win.`);
+      await loadData();
+    } catch (err) {
+      const message = err.response?.data?.message || 'Could not complete mission';
+      if (proofTask) setProofError(message); else setError(message);
+      if (err.response?.status === 409) await loadData();
+    } finally { setCompleting(false); }
+  };
+  const handleComplete = task => {
+    if (task.requiresProof) { setProofTask(task); setProof({ note: '', proofUrl: '', focusMinutes: '' }); setProofError(''); }
+    else complete(task);
+  };
+  const createAnother = task => {
+    openEdit(task);
+    setModal({ mode: 'create' });
+  };
 
   // Filtering happens client-side: we already have all the tasks in memory.
   const visibleTasks = tasks.filter((t) => {
@@ -123,7 +164,7 @@ export default function Tasks() {
         <div>
           <h1 className="font-display text-2xl font-bold text-white sm:text-3xl">Missions</h1>
           <p className="mt-1 text-sm text-slate-400">
-            Daily and weekly objectives. Complete them to earn XP (completion unlocks in Phase 3).
+            Check off a mission, earn XP, and keep your win on the board. Want another round? Create another mission.
           </p>
         </div>
         <button onClick={openCreate} disabled={skills.length === 0} className="btn-primary">
@@ -131,6 +172,8 @@ export default function Tasks() {
         </button>
       </div>
 
+      <DayCountdown clock={clock} total={tasks.filter(task => task.frequency === 'daily' || task.repeatable).length} completed={tasks.filter(task => (task.frequency === 'daily' || task.repeatable) && task.completed).length} />
+      {reward && <div role="status" className="glass p-4 text-sm text-neon">✦ {reward}</div>}
       <ErrorMessage message={error} />
 
       {skills.length === 0 ? (
@@ -191,13 +234,23 @@ export default function Tasks() {
           ) : (
             <div className="space-y-3">
               {visibleTasks.map((task) => (
-                <TaskCard key={task._id} task={task} onEdit={openEdit} onDelete={handleDelete} />
+                <TaskCard key={task._id} task={task} onEdit={openEdit} onDelete={handleDelete} onComplete={handleComplete} onCreateAnother={createAnother} busy={completing} />
               ))}
             </div>
           )}
         </>
       )}
 
+      <Modal open={!!proofTask} title="Complete your mission" onClose={() => !completing && setProofTask(null)}>
+        <form className="space-y-4" onSubmit={e => { e.preventDefault(); complete(proofTask, proof); }}>
+          <p className="text-sm text-slate-400">{proofTask?.title}: add a note, a link, or at least 25 focus minutes.</p>
+          <ErrorMessage message={proofError} />
+          <label className="block text-sm">What did you accomplish?<textarea className="input mt-2" maxLength={300} value={proof.note} onChange={e => setProof({ ...proof, note: e.target.value })} /></label>
+          <label className="block text-sm">Proof link<input className="input mt-2" type="url" value={proof.proofUrl} onChange={e => setProof({ ...proof, proofUrl: e.target.value })} /></label>
+          <label className="block text-sm">Focus minutes<input className="input mt-2" type="number" min={0} max={600} value={proof.focusMinutes} onChange={e => setProof({ ...proof, focusMinutes: e.target.value })} /></label>
+          <button className="btn-primary w-full" disabled={completing}>{completing ? 'Saving…' : 'Complete mission'}</button>
+        </form>
+      </Modal>
       {/* Create / edit modal */}
       <Modal
         open={!!modal}
@@ -304,7 +357,7 @@ export default function Tasks() {
                 onChange={(e) => setForm({ ...form, repeatable: e.target.checked })}
                 className="h-4 w-4 accent-[#22d3ee]"
               />
-              Repeatable
+              Repeat daily
             </label>
           </div>
 

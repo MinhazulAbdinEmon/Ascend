@@ -14,7 +14,7 @@ export default function MissionList({ tasks, completedTaskIds = [], completingId
       {tasks.map((task) => {
         const diff = difficultyMeta(task.difficulty);
         const doneToday = completedSet.has(task._id);
-        const locked = doneToday && !task.repeatable; // repeatable tasks stay clickable
+        const locked = doneToday; // Every completed mission stays crossed out until tomorrow.
 
         return (
           <li
@@ -27,10 +27,11 @@ export default function MissionList({ tasks, completedTaskIds = [], completingId
           >
             <button
               onClick={() => !locked && onComplete(task)}
-              disabled={locked || completingId === task._id}
+              disabled={locked || !!completingId}
+              aria-label={`${locked ? 'Completed' : 'Complete mission'}: ${task.title}`}
               title={
                 locked
-                  ? 'Completed - come back tomorrow'
+                  ? 'Completed today. Create another mission to keep going.'
                   : doneToday
                     ? 'Repeatable - complete again'
                     : 'Complete mission'
@@ -43,22 +44,14 @@ export default function MissionList({ tasks, completedTaskIds = [], completingId
                 completingId === task._id ? 'animate-pulse' : ''
               }`}
             >
-              {doneToday && !locked ? '↻' : '✓'}
+              ✓
             </button>
 
             <span className="text-base">{task.skill?.icon || '🎯'}</span>
-            <span
-              className={`min-w-0 flex-1 truncate text-sm ${
-                locked ? 'text-slate-500 line-through' : 'text-slate-200'
-              }`}
-            >
-              {task.title}
-              {task.requiresProof && (
-                <span className="ml-1.5 text-xs" title="Requires proof: focus minutes, note, or link">
-                  📎
-                </span>
-              )}
-            </span>
+            <div className="min-w-0 flex-1">
+              <p className={`text-sm leading-relaxed break-words ${locked ? 'text-slate-500 line-through' : 'text-slate-200'}`}>{task.title}</p>
+              <p className="mt-1 text-[10px] text-slate-500">{task.skill?.name || 'Personal growth'} · {diff.label}{task.repeatable ? ' · Resets daily' : ''}{task.requiresProof ? ' · Proof required' : ''}</p>
+            </div>
             <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${diff.classes}`}>
               +{task.xpReward} XP
             </span>

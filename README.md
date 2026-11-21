@@ -74,7 +74,7 @@ XP: Easy 10 · Medium 25 · Hard 50 · Deep work 75, with small multipliers
 (proof link 1.2x, note 1.05x; streak up to 1.2x at 30 days).
 
 Anti-abuse: 300 XP/day cap · per-difficulty daily caps (easy 60, medium 125, hard 200) ·
-half XP after 6 completions/day · once-per-day/week unless repeatable · spam-title rejection ·
+half XP after 6 completions/day · once per day for daily/repeatable missions; once per week for weekly missions · spam-title rejection ·
 `requiresProof` missions demand focus minutes, a note, or a link.
 
 Heatmap intensity: 0 tasks = empty · 1 = low · 2–4 = medium · 5+ = high.
@@ -121,3 +121,40 @@ The app deploys as three pieces: database on **MongoDB Atlas**, API on **Render*
 - [x] Phase 4 — heatmap, profile page, dashboard/heatmap/profile/weekly stats APIs
 - [x] Phase 5 — weekly + season leaderboards, season system, proof flow
 - [x] Phase 6 — mobile polish, user timezones, in-app guide, deployment readiness
+
+
+## Focus timer and productivity statistics
+
+Open **Statistics** for the last 7 or 30 days of timer-recorded focus: daily minutes,
+productive hours, totals, averages, and recent sessions. Charts use the profile timezone
+and split sessions across midnight. Manually entered mission proof minutes are separate.
+
+Focus and break timers support presets and custom durations (1–180 minutes), pause,
+resume, and discard. The server stores the active session so navigation and reloads do
+not reset it. Completed focus sessions save automatically and idempotently. Breaks,
+pauses, and discarded sessions do not add productivity minutes or award mission XP.
+Complete missions separately to earn XP under the existing rating rules.
+
+An in-app notification and a loud, repeating eight-second alarm announce completion. The timer includes a volume slider, Test alarm, and Silence controls. Sound is scheduled on the browser audio clock and does not wait for the save request. After refreshing, use Test alarm to re-enable audio. Desktop notifications are
+optional via the timer's enable button and depend on browser permission/support. Keep
+the app open for alerts; an overdue timer is finalized at its original deadline when you
+return, without counting extra time while the app was closed. Breaks start only when
+chosen by the user.
+
+Restart the API after updating to load `/api/focus` and the new FocusSession model.
+Run `npm --prefix server run test:focus` for isolated timer/statistics integration tests
+(including duplicate completion, pause exclusion, midnight, and DST).
+
+
+## Daily mission board
+
+Daily and repeatable missions can be completed once per local day. They stay crossed
+out after completion; **Create another** opens a new mission with the same settings
+for another round. Daily eligibility resets at local midnight, immediately after
+11:59 PM, using the profile timezone. Open mission boards refresh on rollover and
+when returning to the tab. History and earned XP are preserved. Non-repeatable weekly
+and one-time missions retain their weekly/lifetime completion periods.
+
+The Missions page includes completion/proof controls and a live hours/minutes/seconds
+countdown for the day. Duplicate completion requests are blocked by a unique period
+index; the index excludes legacy records so existing history is preserved.
